@@ -1,0 +1,17 @@
+{
+  "allow_member_set": {
+    "description": "是否允许普通群成员设置本群唤醒前缀。关闭时仅管理员可设置。",
+    "type": "bool",
+    "default": false
+  },
+  "match_mode": {
+    "description": "匹配方式：prefix=消息以该前缀开头才唤醒；contains=消息任意位置包含该前缀即唤醒。",
+    "type": "string",
+    "default": "prefix"
+  },
+  "suppress_builtin": {
+    "description": "本群设置自定义唤醒前缀后，是否屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix 等）。开启后仅自定义前缀可触发命令，@ 提及、@全体、引用回复机器人等社交性唤醒不受影响；关闭则自定义前缀与内置唤醒并存。本插件的管理指令（/setwake、/delwake、/wakeprefix）始终可用，保证能随时恢复内置唤醒。",
+    "type": "bool",
+    "default": true
+  }
+}
