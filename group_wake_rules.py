@@ -73,6 +73,18 @@ def merge_prefixes(existing: list, additions: list) -> list:
     return merged
 
 
+def remove_prefixes(existing: list, removals: list) -> list:
+    """批量移除指定前缀（``/delwake a b`` 只删 a、b，保留其余）。
+
+    removals 为空、或其中某项不存在于现有前缀时安全返回：
+    不存在的项被忽略，不影响其余前缀。顺序保持原样。
+    """
+    rm = {str(r).strip() for r in removals if str(r).strip()}
+    if not rm:
+        return list(existing)
+    return [p for p in existing if str(p).strip() not in rm]
+
+
 def raw_message_text(event) -> str:
     """取用户「原始输入」文本，即**尚未**被 WakingCheckStage 剥离 wake_prefix 的版本。
 

@@ -475,6 +475,16 @@ def test_merge_prefixes_dedup():
     assert wr.merge_prefixes([" a "], ["a"]) == ["a"]
 
 
+def test_remove_prefixes_batch():
+    """/delwake 带参批量移除：只删指定前缀，保留其余。"""
+    assert wr.remove_prefixes(["a", "b", "c"], ["b"]) == ["a", "c"]
+    assert wr.remove_prefixes(["a", "b", "c"], ["a", "c"]) == ["b"]
+    assert wr.remove_prefixes(["a", "b"], ["x"]) == ["a", "b"]  # 不存在项忽略
+    assert wr.remove_prefixes(["a", "b"], []) == ["a", "b"]  # 空移除不改变
+    assert wr.remove_prefixes(["a", "b"], [" b "]) == ["a"]  # strip 后匹配
+    assert wr.remove_prefixes(["a"], ["a", "a"]) == []  # 重复移除安全
+
+
 def test_load_prefixes_from_file_disk_truth():
     """磁盘 JSON 是前缀的唯一真相来源（模拟「旧实例内存缓存过期」场景）。
 
@@ -607,6 +617,7 @@ if __name__ == "__main__":
     run("有消息链时按原始文本匹配", test_raw_text_used_when_messages_available)
     run("merge 新增累积", test_merge_prefixes_accumulates)
     run("merge 去重忽略空白", test_merge_prefixes_dedup)
+    run("remove 批量移除", test_remove_prefixes_batch)
     run("磁盘 JSON 是前缀唯一真相", test_load_prefixes_from_file_disk_truth)
     run("热重载残留旧层必须被剥掉", test_hot_reload_strips_foreign_legacy_layer)
     print("\n全部测试通过 ✅")

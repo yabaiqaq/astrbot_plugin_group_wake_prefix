@@ -1,4 +1,4 @@
-"""群唤醒前缀自定义插件（v1.4.0）。
+"""群唤醒前缀自定义插件（v1.4.1）。
 
 在不同群里通过指令自定义专属唤醒符号 / 词语，实现按群区分的唤醒方式；
 并支持在本群设置自定义前缀后屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix），
@@ -25,6 +25,7 @@ from .group_wake_rules import (
     apply_wake_rules,
     is_mgmt_command,
     merge_prefixes,
+    remove_prefixes,
     count_patch_layers,
     load_prefixes_from_file,
 )
@@ -37,7 +38,7 @@ DEFAULT_REPO = "https://github.com/yabaiqaq/astrbot_plugin_group_wake_prefix"
     PLUGIN_NAME,
     "yabaiqaq",
     "在不同群内通过指令自定义专属唤醒前缀（符号或词），支持屏蔽/恢复系统内置唤醒方式",
-    "1.4.0",
+    "1.4.1",
     DEFAULT_REPO,
 )
 class GroupWakePrefixPlugin(Star):
@@ -202,7 +203,7 @@ class GroupWakePrefixPlugin(Star):
                 f"用法：{wp}setwake <前缀1> [前缀2 ...]\n"
                 f"例如：{wp}setwake @   或   {wp}setwake 膜顾问 小钜\n"
                 f"多次设置会累积（新增唤醒词，不会覆盖之前设置的）；"
-                f"发 {wp}delwake 可清除全部。\n"
+                f"发 {wp}delwake <前缀> 可移除指定前缀，不带参数则全部清除。\n"
                 f"（当前 AstrBot 唤醒前缀为「{wp}」，请按实际前缀发送）"
             )
             return
@@ -231,6 +232,11 @@ class GroupWakePrefixPlugin(Star):
 
     @filter.command("delwake")
     async def del_wake(self, event: AstrMessageEvent):
+        """清除本群唤醒前缀。
+
+        无参数 = 清除全部（恢复系统内置唤醒）；
+        带参数 = 只移除指定的前缀，支持批量（/delwake a b c），其余保留。
+        """
         wp = self._hint_prefix()
         if event.is_private_chat():
             yield event.plain_result(f"请在群聊中使用 {wp}delwake 清除本群的唤醒前缀。")
@@ -239,19 +245,44 @@ class GroupWakePrefixPlugin(Star):
             yield event.plain_result("只有管理员可以清除本群唤醒前缀。")
             return
         gid = event.get_group_id()
-        had = bool(self._get_prefixes(gid))
-        await self._set_prefixes(gid, [])
-        if had:
-            yield event.plain_result(
-                "已清除本群自定义唤醒前缀，系统内置唤醒方式已恢复：\n"
-                f"wake_prefix = {self._wake_prefixes() or '[]'}、@ 提及、私聊。"
-            )
-        else:
+        current = self._get_prefixes(gid)
+        if not current:
             yield event.plain_result(
                 "本群原本就没有自定义唤醒前缀。\n"
                 f"当前系统唤醒前缀为 {self._wake_prefixes() or '[]'}；"
                 f"可用 {wp}wakestatus 查看完整诊断。"
             )
+            return
+        raw = (event.message_str or "").strip()
+        content = re.sub(r"^(/)?delwake[\s:：]*", "", raw, flags=re.IGNORECASE).strip()
+        removals = content.split()
+        if not removals:
+            # 无参数：清除全部（原行为）
+            await self._set_prefixes(gid, [])
+            yield event.plain_result(
+                "已清除本群自定义唤醒前缀，系统内置唤醒方式已恢复：\n"
+                f"wake_prefix = {self._wake_prefixes() or '[]'}、@ 提及、私聊。"
+            )
+            return
+        # 带参数：批量移除指定前缀，其余保留
+        remaining = remove_prefixes(current, removals)
+        not_found = [r for r in removals if r not in current]
+        await self._set_prefixes(gid, remaining)
+        removed_names = "、".join(f"「{p}」" for p in removals)
+        lines = [f"已移除本群唤醒前缀：{removed_names}"]
+        if remaining:
+            lines.append(
+                "剩余唤醒前缀：" + "、".join(f"「{p}」" for p in remaining)
+            )
+        else:
+            lines.append("本群已无自定义唤醒前缀，系统内置唤醒方式已恢复。")
+        if not_found:
+            lines.append(
+                "（以下前缀本就不存在，已忽略："
+                + "、".join(f"「{p}」" for p in not_found)
+                + "）"
+            )
+        yield event.plain_result("\n".join(lines))
 
     @filter.command("wakereset")
     async def wake_reset(self, event: AstrMessageEvent):
