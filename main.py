@@ -1,4 +1,4 @@
-"""群唤醒前缀自定义插件（v1.3.0）。
+"""群唤醒前缀自定义插件（v1.4.0）。
 
 在不同群里通过指令自定义专属唤醒符号 / 词语，实现按群区分的唤醒方式；
 并支持在本群设置自定义前缀后屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix），
@@ -24,6 +24,7 @@ from .group_wake_rules import (
     install_patch,
     apply_wake_rules,
     is_mgmt_command,
+    merge_prefixes,
     count_patch_layers,
     load_prefixes_from_file,
 )
@@ -36,7 +37,7 @@ DEFAULT_REPO = "https://github.com/yabaiqaq/astrbot_plugin_group_wake_prefix"
     PLUGIN_NAME,
     "yabaiqaq",
     "在不同群内通过指令自定义专属唤醒前缀（符号或词），支持屏蔽/恢复系统内置唤醒方式",
-    "1.3.0",
+    "1.4.0",
     DEFAULT_REPO,
 )
 class GroupWakePrefixPlugin(Star):
@@ -200,11 +201,17 @@ class GroupWakePrefixPlugin(Star):
             yield event.plain_result(
                 f"用法：{wp}setwake <前缀1> [前缀2 ...]\n"
                 f"例如：{wp}setwake @   或   {wp}setwake 膜顾问 小钜\n"
+                f"多次设置会累积（新增唤醒词，不会覆盖之前设置的）；"
+                f"发 {wp}delwake 可清除全部。\n"
                 f"（当前 AstrBot 唤醒前缀为「{wp}」，请按实际前缀发送）"
             )
             return
-        await self._set_prefixes(gid, parts)
+        # 新增模式：在现有前缀基础上追加，不清空之前设置的前缀
+        current = self._get_prefixes(gid)
+        merged = merge_prefixes(current, parts)
+        await self._set_prefixes(gid, merged)
         names = "、".join(f"「{p}」" for p in parts)
+        all_names = "、".join(f"「{p}」" for p in merged)
         suppress = self.config.get("suppress_builtin", True)
         wp = self._hint_prefix()
         if suppress:
@@ -212,12 +219,13 @@ class GroupWakePrefixPlugin(Star):
                 f"\n同时已屏蔽本群的系统内置命令唤醒（wake_prefix "
                 f"{self._wake_prefixes() or '[]'} 触发的指令）；"
                 f"@ 提及、引用回复不受影响。发 {wp}delwake 即可恢复。\n"
-                f"注意：若「{names}」与 wake_prefix 相同，仍会正常放行，不会把自己的唤醒也屏蔽。"
+                f"注意：若「{all_names}」与 wake_prefix 相同，仍会正常放行，不会把自己的唤醒也屏蔽。"
             )
         else:
             tail = f"\n系统内置命令唤醒（wake_prefix {self._wake_prefixes() or '[]'} 触发的指令）仍可使用。"
         yield event.plain_result(
-            f"已为本群设置唤醒前缀：{names}\n"
+            f"已为本群新增唤醒前缀：{names}\n"
+            f"当前本群唤醒前缀：{all_names}\n"
             f"之后消息以这些前缀开头即可唤醒机器人。{tail}"
         )
 

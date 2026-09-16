@@ -57,6 +57,22 @@ def is_mgmt_command(text: str) -> bool:
     return first in MGMT_COMMANDS
 
 
+def merge_prefixes(existing: list, additions: list) -> list:
+    """合并唤醒前缀（新增模式）：在现有前缀基础上追加新前缀，去重、保持顺序。
+
+    ``/setwake`` 的语义是「新增」而非「覆盖」：先 setwake a、再 setwake b，
+    结果为 [a, b]，a 不会被清掉。空白前缀忽略。
+    """
+    merged: list[str] = []
+    seen: set[str] = set()
+    for p in list(existing) + list(additions):
+        s = str(p).strip()
+        if s and s not in seen:
+            seen.add(s)
+            merged.append(s)
+    return merged
+
+
 def raw_message_text(event) -> str:
     """取用户「原始输入」文本，即**尚未**被 WakingCheckStage 剥离 wake_prefix 的版本。
 

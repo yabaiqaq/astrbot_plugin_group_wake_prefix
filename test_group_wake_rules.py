@@ -460,6 +460,21 @@ def test_raw_text_used_when_messages_available():
     assert ev.message_str == "点歌 周杰伦"
 
 
+def test_merge_prefixes_accumulates():
+    """/setwake 新增模式：多次设置累积，不覆盖之前的前缀。"""
+    assert wr.merge_prefixes([], ["a"]) == ["a"]
+    assert wr.merge_prefixes(["a"], ["b"]) == ["a", "b"]
+    assert wr.merge_prefixes(["a", "b"], ["c", "d"]) == ["a", "b", "c", "d"]
+
+
+def test_merge_prefixes_dedup():
+    """重复设置相同前缀自动去重，空白前缀忽略。"""
+    assert wr.merge_prefixes(["a"], ["a"]) == ["a"]
+    assert wr.merge_prefixes(["a"], ["b", "a"]) == ["a", "b"]
+    assert wr.merge_prefixes(["a"], ["", "  "]) == ["a"]
+    assert wr.merge_prefixes([" a "], ["a"]) == ["a"]
+
+
 def test_load_prefixes_from_file_disk_truth():
     """磁盘 JSON 是前缀的唯一真相来源（模拟「旧实例内存缓存过期」场景）。
 
@@ -590,6 +605,8 @@ if __name__ == "__main__":
     run("引用别人仍屏蔽", test_reply_others_still_suppressed)
     run("无消息链时退化到 message_str", test_raw_text_fallback_without_messages)
     run("有消息链时按原始文本匹配", test_raw_text_used_when_messages_available)
+    run("merge 新增累积", test_merge_prefixes_accumulates)
+    run("merge 去重忽略空白", test_merge_prefixes_dedup)
     run("磁盘 JSON 是前缀唯一真相", test_load_prefixes_from_file_disk_truth)
     run("热重载残留旧层必须被剥掉", test_hot_reload_strips_foreign_legacy_layer)
     print("\n全部测试通过 ✅")
