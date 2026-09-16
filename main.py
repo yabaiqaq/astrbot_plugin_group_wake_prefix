@@ -309,7 +309,7 @@ class GroupWakePrefixPlugin(Star):
             yield event.plain_result(f"请在群聊中使用 {wp}wakeprefix 查看本群的唤醒前缀。")
             return
         gid = event.get_group_id()
-        prefixes = list(dict.fromkeys(self._get_prefixes(gid)))  # 显示层去重（兼容历史脏数据）
+        prefixes = list(dict.fromkeys(self._get_prefixes(gid)))  # 显示层去重：仅合并完全相同的重复项（全角/半角等相似字符按精确匹配区分）
         if not prefixes:
             yield event.plain_result("本群未设置自定义唤醒前缀，使用系统默认唤醒。")
         else:
