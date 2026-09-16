@@ -24,7 +24,7 @@ WakingCheckStage 内部对每个命令都被调用），在本群有自定义前
 import json
 from pathlib import Path
 
-MGMT_COMMANDS = {"setwake", "delwake", "wakeprefix", "wakestatus"}
+MGMT_COMMANDS = {"setwake", "delwake", "wakeprefix", "wakestatus", "wakereset"}
 
 
 def load_prefixes_from_file(path, gid: str) -> list:

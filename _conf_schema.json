@@ -10,7 +10,7 @@
     "default": "prefix"
   },
   "suppress_builtin": {
-    "description": "本群设置自定义唤醒前缀后，是否屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix 等）。开启后仅自定义前缀可触发命令，@ 提及、@全体、引用回复机器人等社交性唤醒不受影响；关闭则自定义前缀与内置唤醒并存。本插件的管理指令（/setwake、/delwake、/wakeprefix）始终可用，保证能随时恢复内置唤醒。",
+    "description": "本群设置自定义唤醒前缀后，是否屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix 等）。开启后仅自定义前缀可触发命令，@ 提及、@全体、引用回复机器人等社交性唤醒不受影响；关闭则自定义前缀与内置唤醒并存。本插件的管理指令（/setwake、/delwake、/wakeprefix、/wakereset）始终可用，保证能随时恢复内置唤醒。",
     "type": "bool",
     "default": true
   }

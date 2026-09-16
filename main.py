@@ -1,4 +1,4 @@
-"""群唤醒前缀自定义插件（v1.4.1）。
+"""群唤醒前缀自定义插件（v1.4.2）。
 
 在不同群里通过指令自定义专属唤醒符号 / 词语，实现按群区分的唤醒方式；
 并支持在本群设置自定义前缀后屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix），
@@ -38,7 +38,7 @@ DEFAULT_REPO = "https://github.com/yabaiqaq/astrbot_plugin_group_wake_prefix"
     PLUGIN_NAME,
     "yabaiqaq",
     "在不同群内通过指令自定义专属唤醒前缀（符号或词），支持屏蔽/恢复系统内置唤醒方式",
-    "1.4.1",
+    "1.4.2",
     DEFAULT_REPO,
 )
 class GroupWakePrefixPlugin(Star):
@@ -200,35 +200,26 @@ class GroupWakePrefixPlugin(Star):
         if not parts:
             wp = self._hint_prefix()
             yield event.plain_result(
-                f"用法：{wp}setwake <前缀1> [前缀2 ...]\n"
-                f"例如：{wp}setwake @   或   {wp}setwake 膜顾问 小钜\n"
-                f"多次设置会累积（新增唤醒词，不会覆盖之前设置的）；"
-                f"发 {wp}delwake <前缀> 可移除指定前缀，不带参数则全部清除。\n"
-                f"（当前 AstrBot 唤醒前缀为「{wp}」，请按实际前缀发送）"
+                f"用法：{wp}setwake <前缀1> [前缀2 ...]（多次设置累积，不覆盖）\n"
+                f"移除：{wp}delwake <前缀> 删指定，不带参数清除全部"
             )
             return
         # 新增模式：在现有前缀基础上追加，不清空之前设置的前缀
         current = self._get_prefixes(gid)
+        was_empty = not current
         merged = merge_prefixes(current, parts)
         await self._set_prefixes(gid, merged)
         names = "、".join(f"「{p}」" for p in parts)
         all_names = "、".join(f"「{p}」" for p in merged)
-        suppress = self.config.get("suppress_builtin", True)
-        wp = self._hint_prefix()
-        if suppress:
-            tail = (
-                f"\n同时已屏蔽本群的系统内置命令唤醒（wake_prefix "
-                f"{self._wake_prefixes() or '[]'} 触发的指令）；"
-                f"@ 提及、引用回复不受影响。发 {wp}delwake 即可恢复。\n"
-                f"注意：若「{all_names}」与 wake_prefix 相同，仍会正常放行，不会把自己的唤醒也屏蔽。"
-            )
-        else:
-            tail = f"\n系统内置命令唤醒（wake_prefix {self._wake_prefixes() or '[]'} 触发的指令）仍可使用。"
-        yield event.plain_result(
-            f"已为本群新增唤醒前缀：{names}\n"
-            f"当前本群唤醒前缀：{all_names}\n"
-            f"之后消息以这些前缀开头即可唤醒机器人。{tail}"
-        )
+        lines = [f"已新增 {names}；当前本群唤醒词：{all_names}"]
+        # 仅首次设置时提示屏蔽行为，避免每次操作刷屏
+        if was_empty and self.config.get("suppress_builtin", True):
+            lines.append("已屏蔽内置命令唤醒（/ 与 wake_prefix）；@ 与引用回复不受影响")
+        # 仅当新增前缀与 wake_prefix 重叠时提示，避免误以为被屏蔽
+        overlap = [p for p in parts if p in self._wake_prefixes()]
+        if overlap:
+            lines.append("「" + "」「".join(overlap) + "」与 wake_prefix 相同，不会误屏蔽")
+        yield event.plain_result("\n".join(lines))
 
     @filter.command("delwake")
     async def del_wake(self, event: AstrMessageEvent):
@@ -247,11 +238,7 @@ class GroupWakePrefixPlugin(Star):
         gid = event.get_group_id()
         current = self._get_prefixes(gid)
         if not current:
-            yield event.plain_result(
-                "本群原本就没有自定义唤醒前缀。\n"
-                f"当前系统唤醒前缀为 {self._wake_prefixes() or '[]'}；"
-                f"可用 {wp}wakestatus 查看完整诊断。"
-            )
+            yield event.plain_result("本群原本就没有自定义唤醒前缀。")
             return
         raw = (event.message_str or "").strip()
         content = re.sub(r"^(/)?delwake[\s:：]*", "", raw, flags=re.IGNORECASE).strip()
@@ -259,29 +246,19 @@ class GroupWakePrefixPlugin(Star):
         if not removals:
             # 无参数：清除全部（原行为）
             await self._set_prefixes(gid, [])
-            yield event.plain_result(
-                "已清除本群自定义唤醒前缀，系统内置唤醒方式已恢复：\n"
-                f"wake_prefix = {self._wake_prefixes() or '[]'}、@ 提及、私聊。"
-            )
+            yield event.plain_result("已清除本群唤醒前缀，系统内置唤醒方式已恢复。")
             return
         # 带参数：批量移除指定前缀，其余保留
         remaining = remove_prefixes(current, removals)
         not_found = [r for r in removals if r not in current]
         await self._set_prefixes(gid, remaining)
         removed_names = "、".join(f"「{p}」" for p in removals)
-        lines = [f"已移除本群唤醒前缀：{removed_names}"]
         if remaining:
-            lines.append(
-                "剩余唤醒前缀：" + "、".join(f"「{p}」" for p in remaining)
-            )
+            lines = [f"已移除 {removed_names}；剩余：{'、'.join(f'「{p}」' for p in remaining)}"]
         else:
-            lines.append("本群已无自定义唤醒前缀，系统内置唤醒方式已恢复。")
+            lines = [f"已移除 {removed_names}；本群已无自定义唤醒前缀，已恢复内置唤醒"]
         if not_found:
-            lines.append(
-                "（以下前缀本就不存在，已忽略："
-                + "、".join(f"「{p}」" for p in not_found)
-                + "）"
-            )
+            lines.append("（不存在，已忽略：" + "、".join(f"「{p}」" for p in not_found) + "）")
         yield event.plain_result("\n".join(lines))
 
     @filter.command("wakereset")
@@ -320,10 +297,9 @@ class GroupWakePrefixPlugin(Star):
             )
             return
         yield event.plain_result(
-            "已重置本插件唤醒配置：清除了所有自定义前缀，并强制刷新了命令拦截层 "
-            f"（当前拦截层实例 id={active}，补丁层数={layers}）。\n"
-            "系统内置唤醒方式（wake_prefix / @ 提及 / 私聊）现在应当恢复。\n"
-            "若仍不恢复，请直接重启 AstrBot 进程后重试。"
+            "已重置：清空全部自定义前缀并刷新命令拦截层"
+            f"（拦截层 id={active}，补丁层数={layers}）。\n"
+            "内置唤醒（wake_prefix / @ 提及 / 私聊）已恢复；若仍异常请重启 AstrBot。"
         )
 
     @filter.command("wakeprefix")
@@ -333,25 +309,20 @@ class GroupWakePrefixPlugin(Star):
             yield event.plain_result(f"请在群聊中使用 {wp}wakeprefix 查看本群的唤醒前缀。")
             return
         gid = event.get_group_id()
-        prefixes = self._get_prefixes(gid)
+        prefixes = list(dict.fromkeys(self._get_prefixes(gid)))  # 显示层去重（兼容历史脏数据）
         if not prefixes:
-            yield event.plain_result(
-                "本群尚未设置自定义唤醒前缀，将使用系统默认唤醒方式：\n"
-                f"wake_prefix = {self._wake_prefixes() or '[]'}、@ 提及、私聊。"
-            )
+            yield event.plain_result("本群未设置自定义唤醒前缀，使用系统默认唤醒。")
         else:
             names = "、".join(f"「{p}」" for p in prefixes)
             mode = (self.config.get("match_mode") or "prefix").lower()
             mode_desc = "开头匹配" if mode == "prefix" else "包含匹配"
             suppress = self.config.get("suppress_builtin", True)
             suppress_desc = (
-                f"已屏蔽内置命令唤醒（{self._wake_prefixes() or '[]'} 前缀）；@ 提及与引用回复不受影响"
+                "已屏蔽内置命令唤醒（@ 与引用回复不受影响）"
                 if suppress
-                else f"未屏蔽内置唤醒（{self._wake_prefixes() or '[]'}、@ 仍可用）"
+                else "内置唤醒未屏蔽（@ 等仍可用）"
             )
-            yield event.plain_result(
-                f"本群唤醒前缀：{names}\n匹配方式：{mode_desc}\n内置唤醒：{suppress_desc}"
-            )
+            yield event.plain_result(f"本群唤醒前缀：{names}（{mode_desc}）；{suppress_desc}")
 
     @filter.command("wakestatus")
     async def wake_status(self, event: AstrMessageEvent):

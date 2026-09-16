@@ -485,6 +485,14 @@ def test_remove_prefixes_batch():
     assert wr.remove_prefixes(["a"], ["a", "a"]) == []  # 重复移除安全
 
 
+def test_mgmt_includes_wakereset():
+    """管理指令白名单必须包含 wakereset，否则设前缀后 /wakereset 会被屏蔽。"""
+    assert wr.is_mgmt_command("/wakereset") is True
+    assert wr.is_mgmt_command("wakereset") is True
+    # 注意：#wakereset 走自定义前缀命中分支（剥离 # 后按命令名匹配），不经 is_mgmt_command
+    assert wr.is_mgmt_command("#wakereset") is False
+
+
 def test_load_prefixes_from_file_disk_truth():
     """磁盘 JSON 是前缀的唯一真相来源（模拟「旧实例内存缓存过期」场景）。
 
@@ -618,6 +626,7 @@ if __name__ == "__main__":
     run("merge 新增累积", test_merge_prefixes_accumulates)
     run("merge 去重忽略空白", test_merge_prefixes_dedup)
     run("remove 批量移除", test_remove_prefixes_batch)
+    run("管理白名单含 wakereset", test_mgmt_includes_wakereset)
     run("磁盘 JSON 是前缀唯一真相", test_load_prefixes_from_file_disk_truth)
     run("热重载残留旧层必须被剥掉", test_hot_reload_strips_foreign_legacy_layer)
     print("\n全部测试通过 ✅")
