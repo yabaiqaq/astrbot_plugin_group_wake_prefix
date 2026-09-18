@@ -2,7 +2,7 @@ name: astrbot_plugin_group_wake_prefix
 display_name: 群唤醒前缀自定义
 desc: 本插件可通过指令在不同群聊自定义不同唤醒词，解决群聊众多机器人唤醒词重合导致一呼百应的问题。 
 author: yabaiqaq
-version: 2.0.1
+version: 2.0.2
 astrbot_version: ">=4.17.0"
 tags:
   - wake
