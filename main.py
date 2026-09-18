@@ -1,4 +1,4 @@
-"""群唤醒前缀自定义插件（v1.4.2）。
+"""群唤醒前缀自定义插件（v2.0.1）。
 
 在不同群里通过指令自定义专属唤醒符号 / 词语，实现按群区分的唤醒方式；
 并支持在本群设置自定义前缀后屏蔽系统内置的「命令唤醒」（/ 前缀、平台 wake_prefix），
@@ -17,8 +17,8 @@ from pathlib import Path
 
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
+from astrbot.api import logger
 from astrbot.core.star.star_tools import StarTools
-from astrbot import logger
 
 from .group_wake_rules import (
     install_patch,
@@ -38,7 +38,7 @@ DEFAULT_REPO = "https://github.com/yabaiqaq/astrbot_plugin_group_wake_prefix"
     PLUGIN_NAME,
     "yabaiqaq",
     "在不同群内通过指令自定义专属唤醒前缀（符号或词），支持屏蔽/恢复系统内置唤醒方式",
-    "1.4.2",
+    "2.0.1",
     DEFAULT_REPO,
 )
 class GroupWakePrefixPlugin(Star):
